@@ -1,0 +1,80 @@
+---
+ - name: Clonar y desplegar paginas web
+   hosts: all #hostname
+   become: yes
+
+   tasks:
+      - name: Clonar repositorio git
+        git:
+         repo: 'https://github.com/Emmanuel050601/Laboratorio_Despliegue_Aplicaciones.git'
+         dest: "/home/luis/despliegue"
+
+      - name: Copiar directorio de la pagina de Curriculum
+        copy:
+          src: "/home/luis/despliegue/Curriculum"
+          dest: "/var/www/"
+          remote_src: yes
+
+      - name: Copiar directorio de la pagina de Prestamos
+        copy:
+          src: "/home/luis/despliegue/prestamos"
+          dest: "/var/www/"
+          remote_src: yes
+
+      - name: Eliminar directorio clonado
+        file:
+          path: "/home/luis/despliegue"
+          state: absent
+
+      - name: Añadir virtualhost para www
+        template:
+          src: "/etc/apache2/sites-available/000-default.conf"
+          dest: "/etc/apache2/sites-available/curriculum.conf"
+
+      - name: Añadir virtualhost para app
+        template:
+          src: "/etc/apache2/sites-available/000-default.conf"
+          dest: "/etc/apache2/sites-available/prestamos.conf"     
+
+      - name: Agregar los puertos para ports.conf
+        blockinfile:
+          name: /etc/apache2/ports.conf
+          block: |
+            Listen 8001
+            Listen 8002
+          marker: "#Ansible managed block"
+
+      - name: Cambiamos el puerto 8001 en curriculum.conf
+        lineinfile:
+          path: /etc/apache2/sites-enabled/curriculum.conf
+          regexp: '^<VirtualHost \*:80>'
+          line: '<VirtualHost *:8001>'
+
+      - name: Cambiamos el puerto 8002 en prestamos.conf
+        lineinfile:
+          path: /etc/apache2/sites-enabled/prestamos.conf
+          regexp: '^<VirtualHost \*:80>'
+          line: '<VirtualHost *:8002>'
+
+      - name: Cambiamos la ruta de la pagina en el documento root
+        lineinfile:
+          path: /etc/apache2/sites-enabled/curriculum.conf
+          regexp: '^\sDocumentRoot /var/www/html'
+          line: 'DocumentRoot /var/www/Curriculum'
+
+      - name: Cambiamos la ruta de la pagina en el documento root
+        lineinfile:
+          path: /etc/apache2/sites-enabled/prestamos.conf
+          regexp: '^\sDocumentRoot /var/www/html'
+          line: 'DocumentRoot /var/www/prestamos'
+
+      - name: Habilitamos el sitio para curriculum
+        shell: /usr/sbin/a2ensite curriculum.conf
+
+      - name: Habilitamos el sitio para prestamos
+        shell: /usr/sbin/a2ensite prestamos.conf
+
+      - name: Reiniciamos Apache
+        service:
+          name: apache2
+          state: restarted
