@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: helados-app
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: helados
+  template:
+    metadata:
+      labels:
+        app: helados
+    spec:
+      containers:
+      - name: helados-app
+        image: brandontorres05/api:v1
+        ports:
+        - containerPort: 8080  # Ajusta el puerto según tu aplicación
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: helados-app-service
+spec:
+  selector:
+    app: helados
+  ports:
+    - protocol: TCP
+      port: 80  # Puerto del servicio en el clúster
+      targetPort: 8080  # Puerto del contenedor de la aplicación
+  type: NodePort  # Cambia esto a "LoadBalancer" si estás en un entorno que soporta balanceadores de carga externos (por ejemplo, en la nube)
+
+
+---
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: helados-app-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  rules:
+  - host: api.betorres.com  # Reemplaza con tu propio dominio
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: helados-app-service
+            port:
+              number: 80
